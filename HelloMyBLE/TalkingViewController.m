@@ -62,13 +62,29 @@
     //字串轉nsdata
     NSData *data = [content dataUsingEncoding:NSUTF8StringEncoding];
     
+    const char myByteArray[] = {
+        0xE1,0x04,0x52,0x0B,
+        0xB8,0x05 };
+    
+    
+    Byte byte[] = {225, 4, 82, 11, 184, 5};
+    
+    NSData * ddd = [NSData dataWithBytes:myByteArray length:6];
+    
+    
+    
+    
+    
     //測試發送 type兩種 會不會回傳 看是否要確保要不要一定要收到
     CBCharacteristicProperties properties = _targetCharacteristic.properties;
     //屬性內有沒有不要回報 沒有的話屬性是要回報
     CBCharacteristicWriteType type = (properties & CBCharacteristicPropertyWriteWithoutResponse)? CBCharacteristicWriteWithoutResponse:CBCharacteristicWriteWithResponse;
     
+    NSLog(@"\n寫入:%@",ddd);
+    
+    
     //發送訊息給裝置
-    [_targetCharacteristic.service.peripheral writeValue:data
+    [_targetCharacteristic.service.peripheral writeValue:ddd
                                        forCharacteristic:_targetCharacteristic
                                                     type:type];
 }
@@ -91,6 +107,10 @@
 -(void)peripheral:(CBPeripheral *)peripheral
 didWriteValueForCharacteristic:(CBCharacteristic *)characteristic
             error:(NSError *)error{
+    
+    NSLog(@"123\n%@",[[NSString alloc] initWithData:characteristic.value encoding:NSUTF8StringEncoding] );
+    
+    
     if (error) {
         NSLog(@"didwriteValueForCharacteristic:%@",error);
     }

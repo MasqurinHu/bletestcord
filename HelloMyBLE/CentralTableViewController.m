@@ -10,7 +10,7 @@
 #import <CoreBluetooth/CoreBluetooth.h>
 #import "DiscoveredItem.h"
 //連線對象的識別方法
-#define TARGET_UUID_PEFIX @""//@"8882" //@"FFE1" @"DFB1" @"8882"
+#define TARGET_UUID_PEFIX @"6E400001-B5A3-F393-E0A9-E50E24DCCA9E"//@"8882" //@"FFE1" @"DFB1" @"8882"
 
 //搜索藍牙
 @interface CentralTableViewController ()<CBCentralManagerDelegate,CBPeripheralDelegate>
@@ -106,6 +106,9 @@
 
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
     //要溝通前 做的事跟掃描一樣 再char做不一樣的事
+    
+    NSLog(@"\n=============================");
+    
     [self connectWithIndexPath:indexPath];
     //如果要溝通 跟掃描做區別
     isTalkingMode = true;
@@ -183,10 +186,10 @@
 //連上某設備時 掃描停止 以省電 所以拉出來獨立寫 讓程式碼重複利用
 -(void)starToScan{
     
-    CBUUID *service1 = [CBUUID UUIDWithString:@"8881"];
-//    CBUUID *service2 = [CBUUID UUIDWithString:@"abcd"];
+    CBUUID *service1 = [CBUUID UUIDWithString:@"6E400001-B5A3-F393-E0A9-E50E24DCCA9E"];
+    CBUUID *service2 = [CBUUID UUIDWithString:@"180A"];
     
-    NSArray *services = @[/*service1/*service1,service2*/];
+    NSArray *services = @[service1,service2];
     NSDictionary *options =
         @{CBCentralManagerScanOptionAllowDuplicatesKey:@(true)};
     [manager scanForPeripheralsWithServices:services
@@ -297,12 +300,59 @@ didDiscoverCharacteristicsForService:(CBService *)service
     for (CBCharacteristic *tmp in service.characteristics) {
         [info appendFormat:@"* Char.: %@\n",tmp.UUID.UUIDString];
         //check if it is talking mode ,and it is what we are looking for
-        NSLog(@"\n%d\n%@",isTalkingMode,tmp.UUID.UUIDString);
-        if (isTalkingMode && [tmp.UUID.UUIDString hasPrefix:TARGET_UUID_PEFIX]) {
-            talkingCharacteristic = tmp;
-            [self performSegueWithIdentifier:@"goTalking" sender:nil];
-            return;
+//        NSLog(@"\n%d\n%@",isTalkingMode,tmp.UUID.UUIDString);
+        
+        NSLog(@"data = %@",tmp.value.description);
+        
+        if (isTalkingMode || tmp.value == nil) {
+            
+            UInt8 a = 0xE1;
+            UInt8 b = 0x04;
+            UInt8 c = 0x52;
+            UInt8 d = 0x0B;
+            UInt8 e = 0xB8;
+            
+            UInt8 g = ~(a + b + c + d + e) ;
+            
+            const char pump[] = {a,b,c,d,e,g};
+            
+            UInt8 read = 0xE0;
+            UInt8 two = 0x02;
+            UInt8 temp =0xa1;
+            UInt8 j = 0xb0;
+            
+            const char myByteArray[] = {read,two,j,~(read+two+j)};
+            
+            const char tempcall[] = {read,two,temp,~(read+two+temp)};
+            
+            UInt8 k = 0xE1;
+            UInt8 l = 0x04;
+            UInt8 m = 0xaf;
+            UInt8 n = 0xff;
+            UInt8 o = 0xff;
+            
+            
+            const char sensor[] = {k,l,m,n,o,~(k+l+m+n+o)};
+            
+            tmp.service.peripheral.delegate = self;
+            //所以設定 訂閱模式 東西有資料主動通知
+            [peripheral setNotifyValue:true forCharacteristic:tmp];
+            
+            
+            
+            [peripheral writeValue:[NSData dataWithBytes: sensor length:6] forCharacteristic:tmp type:CBCharacteristicWriteWithResponse];
+            [peripheral writeValue:[NSData dataWithBytes: pump length:6] forCharacteristic:tmp type:CBCharacteristicWriteWithResponse];
+            [peripheral writeValue:[NSData dataWithBytes: myByteArray length:4] forCharacteristic:tmp type:CBCharacteristicWriteWithResponse];
+//            [peripheral writeValue:[NSData dataWithBytes: tempcall length:4] forCharacteristic:tmp type:CBCharacteristicWriteWithResponse];
+            
         }
+        
+        
+//        if (isTalkingMode && [tmp.UUID.UUIDString hasPrefix:TARGET_UUID_PEFIX]) {
+//            talkingCharacteristic = tmp;
+//            [self performSegueWithIdentifier:@"goTalking" sender:nil];
+//            return;
+//        }
         
     }
     
@@ -321,6 +371,33 @@ didDiscoverCharacteristicsForService:(CBService *)service
     }
     
 }
+//訂閱
+-(void)peripheral:(CBPeripheral *)peripheral didUpdateValueForCharacteristic:(CBCharacteristic *)characteristic error:(NSError *)error{
+    
+    NSString *message;
+    if (error) {
+        message = error.description;
+    }else{
+        message = characteristic.value.description ;
+    }
+    
+    NSLog(@"\n訂閱 %@",message);
+}
+
+
+//回報
+-(void)peripheral:(CBPeripheral *)peripheral
+didWriteValueForCharacteristic:(CBCharacteristic *)characteristic
+            error:(NSError *)error{
+    
+    NSLog(@"\n回報 %@",characteristic.value );
+    
+    
+    if (error) {
+        NSLog(@"didwriteValueForCharacteristic:%@",error);
+    }
+}
+
 
 
 @end
