@@ -335,7 +335,7 @@ didDiscoverCharacteristicsForService:(CBService *)service
             const char sensor[] = {k,l,m,n,o,~(k+l+m+n+o)};
             
             tmp.service.peripheral.delegate = self;
-            //所以設定 訂閱模式 東西有資料主動通知
+            //所以設定 訂閱模式 東西有資料主動通知??
             [peripheral setNotifyValue:true forCharacteristic:tmp];
             
             
